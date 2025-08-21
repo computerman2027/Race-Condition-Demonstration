@@ -10,10 +10,8 @@
 
 char shared_string[STRING_SIZE] = "lorem ipsum";
 
-char* filename ="reader.txt";
-
+// List of test sentences
 const char *sentences[NUM_SENTENCES] = {
-
     "The quick brown fox jumps over the lazy dog.",
     "All that glitters is not gold.",
     "A watched pot never boils.",
@@ -31,19 +29,28 @@ void *writer_function(void *arg)
     int i = 0;
     while (1)
     {
-        strncpy(shared_string, sentences[i], STRING_SIZE - 1);
-        shared_string[STRING_SIZE - 1] = '\0';
+        const char *sentence = sentences[i];
+        size_t len = strlen(sentence);
+
+        // Simulate long write (character by character)
+        for (size_t j = 0; j < len && j < STRING_SIZE - 1; ++j)
+        {
+            shared_string[j] = sentence[j];
+            usleep(1000); // tiny delay between characters
+        }
+        shared_string[len] = '\0';
+
         i = (i + 1) % NUM_SENTENCES;
-        sleep(5);
+        sleep(1); // new sentence every second
     }
     return NULL;
 }
 
 void *reader_function(void *arg)
 {
-    // int id = *(int *)arg;
-    // char filename[32];
-    // snprintf(filename, sizeof(filename), "reader_%d.txt", id);
+    int id = *(int *)arg;
+    char filename[32];
+    snprintf(filename, sizeof(filename), "reader_%d.txt", id);
 
     FILE *f = fopen(filename, "w");
     if (!f)
@@ -55,9 +62,8 @@ void *reader_function(void *arg)
     while (1)
     {
         fprintf(f, "%s\n", shared_string);
-        fflush(f);      // flush immediately to file
-        //usleep(200000); // reader reads 5 times per second
-//	sleep(1);
+        fflush(f);      // immediately flush to file
+        usleep(100000); // read 10 times per second
     }
 
     fclose(f);
@@ -73,14 +79,14 @@ int main()
     // create writer
     pthread_create(&writer, NULL, writer_function, NULL);
 
-    // create multiple readers
+    // create readers
     for (int i = 0; i < NUM_READERS; i++)
     {
         ids[i] = i;
         pthread_create(&readers[i], NULL, reader_function, &ids[i]);
     }
 
-    // wait (infinite loop anyway, but keep program running)
+    // wait (infinite)
     pthread_join(writer, NULL);
     for (int i = 0; i < NUM_READERS; i++)
     {
